@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lumen Wells — Lumen Arcade</title>
+  <link rel="stylesheet" href="chrome.css" />
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #03040a; }
+    canvas { display: block; width: 100%; height: 100%; cursor: none; }
+    #hud {
+      position: fixed; inset: 0; pointer-events: none;
+      font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      color: rgba(230, 240, 255, 0.78);
+    }
+    #title {
+      position: absolute; top: 68px; left: 32px;
+      letter-spacing: 0.28em; text-transform: uppercase;
+      font-size: 11px; font-weight: 600;
+    }
+    #title b {
+      display: block; font-size: 28px; letter-spacing: 0.08em;
+      font-weight: 650; color: #f4f7ff; margin-top: 6px;
+    }
+    #hint {
+      position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%);
+      font-size: 13px; letter-spacing: 0.04em; text-align: center;
+      background: rgba(8, 10, 20, 0.45); border: 1px solid rgba(255,255,255,0.08);
+      padding: 10px 16px; border-radius: 999px;
+    }
+    #meta {
+      position: absolute; top: 28px; right: 32px; text-align: right;
+      font-variant-numeric: tabular-nums; font-size: 12px; line-height: 1.7;
+      letter-spacing: 0.06em;
+    }
+    kbd {
+      display: inline-block; padding: 1px 6px; margin: 0 2px;
+      border: 1px solid rgba(255,255,255,0.18); border-radius: 4px;
+      font-size: 11px; font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+  <a class="back" href="../index.html">Arcade</a>
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div id="title">sandbox<b>Lumen Wells</b></div>
+    <div id="meta">
+      <div id="mode">mode · attract</div>
+      <div id="count">wells · 1</div>
+      <div id="palette">palette · aurora</div>
+    </div>
+    <div id="hint">
+      move to pull · click to drop a well · hold for a black hole ·
+      <kbd>Space</kbd> flip · <kbd>1</kbd>–<kbd>4</kbd> color · <kbd>C</kbd> clear · <kbd>R</kbd> reset
+    </div>
+  </div>
+  <script>
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let W = 0, H = 0;
+    const palettes = {
+      aurora: [[80, 220, 180], [120, 180, 255], [210, 140, 255], [255, 210, 140]],
+      ember:  [[255, 90, 40], [255, 160, 50], [255, 230, 140], [255, 70, 90]],
+      tide:   [[40, 180, 255], [80, 255, 230], [180, 220, 255], [90, 120, 255]],
+      violet: [[180, 90, 255], [255, 80, 180], [120, 80, 255], [255, 200, 255]],
+    };
+    const paletteNames = Object.keys(palettes);
+    let paletteIndex = 0;
+    const N = 4200;
+    const px = new Float32Array(N), py = new Float32Array(N);
+    const vx = new Float32Array(N), vy = new Float32Array(N);
+    const wells = [];
+    let mouse = { x: 0, y: 0, down: false, present: false };
+    let attract = 1, holdT = 0, hintFade = 0;
+
+    function resize() {
+      W = innerWidth; H = innerHeight;
+      canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function spawn(i, burstX, burstY) {
+      const a = Math.random() * Math.PI * 2;
+      const r = burstX != null ? Math.random() * 28 : Math.sqrt(Math.random()) * Math.min(W, H) * 0.48;
+      const cx = burstX ?? W * 0.5, cy = burstY ?? H * 0.5;
+      px[i] = cx + Math.cos(a) * r; py[i] = cy + Math.sin(a) * r;
+      const s = 0.15 + Math.random() * 0.85;
+      vx[i] = -Math.sin(a) * s * 1.4 + (Math.random() - 0.5) * 0.4;
+      vy[i] = Math.cos(a) * s * 1.4 + (Math.random() - 0.5) * 0.4;
+    }
+    function resetField() {
+      for (let i = 0; i < N; i++) spawn(i);
+      wells.length = 0;
+      wells.push({ x: W * 0.5, y: H * 0.5, m: 1.15 });
+    }
+    function rgb(c, a) { return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+    function mix(a, b, t) {
+      return [a[0] + (b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+    }
+    function colorFor(speed, t) {
+      const cols = palettes[paletteNames[paletteIndex]];
+      const u = Math.min(1, speed / 8);
+      const i = u * (cols.length - 1);
+      const i0 = Math.floor(i), i1 = Math.min(cols.length - 1, i0 + 1);
+      const c = mix(cols[i0], cols[i1], i - i0);
+      return rgb(c, 0.55 * (0.72 + 0.28 * Math.sin(t * 0.0012 + speed)));
+    }
+    let last = performance.now();
+    function tick(now) {
+      const dt = Math.min(32, now - last) / 16.67; last = now;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "rgba(3, 4, 10, 0.18)";
+      ctx.fillRect(0, 0, W, H);
+      const mx = mouse.present ? mouse.x : W * 0.5;
+      const my = mouse.present ? mouse.y : H * 0.5;
+      holdT = mouse.down ? Math.min(1, holdT + 0.025 * dt) : Math.max(0, holdT - 0.04 * dt);
+      const mouseMass = (1.4 + holdT * 6.5) * attract;
+      const G = 42 * attract;
+      for (let i = 0; i < N; i++) {
+        let ax = 0, ay = 0;
+        let dx = mx - px[i], dy = my - py[i];
+        let d2 = dx*dx + dy*dy + 90, inv = 1 / d2;
+        ax += dx * mouseMass * G * inv; ay += dy * mouseMass * G * inv;
+        for (const well of wells) {
+          dx = well.x - px[i]; dy = well.y - py[i];
+          d2 = dx*dx + dy*dy + 70; inv = 1 / d2;
+          ax += dx * well.m * G * inv; ay += dy * well.m * G * inv;
+        }
+        vx[i] = (vx[i] + ax * dt) * 0.992;
+        vy[i] = (vy[i] + ay * dt) * 0.992;
+        px[i] += vx[i] * dt * 1.15; py[i] += vy[i] * dt * 1.15;
+        if (px[i] < -40 || px[i] > W + 40 || py[i] < -40 || py[i] > H + 40) spawn(i, mx, my);
+        const sp = Math.hypot(vx[i], vy[i]);
+        ctx.fillStyle = colorFor(sp, now);
+        const s = 0.7 + Math.min(2.8, sp * 0.28);
+        ctx.fillRect(px[i], py[i], s, s);
+      }
+      ctx.globalCompositeOperation = "lighter";
+      const gCol = palettes[paletteNames[paletteIndex]][1];
+      const glow = ctx.createRadialGradient(mx, my, 0, mx, my, 90 + holdT * 140);
+      glow.addColorStop(0, rgb(gCol, 0.18 + holdT * 0.22));
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(mx, my, 90 + holdT * 140, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = `rgba(255,255,255,${0.18 + holdT * 0.35})`;
+      ctx.beginPath(); ctx.arc(mx, my, 10 + holdT * 18, 0, Math.PI * 2); ctx.stroke();
+      for (const well of wells) {
+        ctx.beginPath(); ctx.arc(well.x, well.y, 6 + well.m * 5, 0, Math.PI * 2); ctx.stroke();
+      }
+      document.getElementById("mode").textContent = "mode · " + (attract > 0 ? "attract" : "repel");
+      document.getElementById("count").textContent = "wells · " + wells.length;
+      document.getElementById("palette").textContent = "palette · " + paletteNames[paletteIndex];
+      hintFade += dt;
+      if (hintFade > 420) document.getElementById("hint").style.opacity = "0.18";
+      requestAnimationFrame(tick);
+    }
+    function uiClick(e) { return e.target.closest("a"); }
+    addEventListener("resize", resize);
+    addEventListener("pointermove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.present = true; });
+    addEventListener("pointerdown", (e) => { if (uiClick(e)) return; mouse.down = true; });
+    addEventListener("pointerup", (e) => {
+      if (uiClick(e)) return;
+      wells.push({ x: e.clientX, y: e.clientY, m: holdT > 0.35 ? 1.8 + holdT * 3.2 : 0.9 + Math.random() * 0.6 });
+      if (wells.length > 12) wells.shift();
+      mouse.down = false;
+    });
+    addEventListener("keydown", (e) => {
+      const k = e.key.toLowerCase();
+      if (e.code === "Space") { e.preventDefault(); attract *= -1; }
+      else if (k === "c") wells.length = 0;
+      else if (k === "r") resetField();
+      else if ("1234".includes(k)) paletteIndex = Number(k) - 1;
+    });
+    resize(); resetField();
+    ctx.fillStyle = "#03040a"; ctx.fillRect(0, 0, W, H);
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>

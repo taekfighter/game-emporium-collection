@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lumen Arcade</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <canvas id="stars"></canvas>
+  <main class="wrap">
+    <header class="hero">
+      <div>
+        <div class="kicker">local arcade</div>
+        <h1>Lumen Arcade</h1>
+        <p class="lede">Six browser games. No accounts, no installs — pick a cabinet and play.</p>
+      </div>
+      <div class="stat">
+        6 cabinets<br />
+        keyboard + mouse<br />
+        runs offline
+      </div>
+    </header>
+
+    <section class="grid">
+      <a class="card" href="games/lumen-wells.html">
+        <div class="swatch s1"></div>
+        <div class="tag">sandbox</div>
+        <h2>Lumen Wells</h2>
+        <p>Steer a gravity well through a field of light. Drop masses, flip polarity, paint orbits.</p>
+        <span class="play">Play</span>
+      </a>
+      <a class="card" href="games/pulse-drift.html">
+        <div class="swatch s2"></div>
+        <div class="tag">endless</div>
+        <h2>Pulse Drift</h2>
+        <p>Thread a needle of light through moving gates. One hit ends the run.</p>
+        <span class="play">Play</span>
+      </a>
+      <a class="card" href="games/prism-break.html">
+        <div class="swatch s3"></div>
+        <div class="tag">arcade</div>
+        <h2>Prism Break</h2>
+        <p>Bounce a spark off your paddle and crack every brick in the lattice.</p>
+        <span class="play">Play</span>
+      </a>
+      <a class="card" href="games/ember-serpent.html">
+        <div class="swatch s4"></div>
+        <div class="tag">classic</div>
+        <h2>Ember Serpent</h2>
+        <p>Eat embers, grow longer, never bite yourself. Simple, mean, and fast.</p>
+        <span class="play">Play</span>
+      </a>
+      <a class="card" href="games/vector-pong.html">
+        <div class="swatch s5"></div>
+        <div class="tag">duel</div>
+        <h2>Vector Pong</h2>
+        <p>Mouse vs machine. First to seven wins the set.</p>
+        <span class="play">Play</span>
+      </a>
+      <a class="card" href="games/echo-signal.html">
+        <div class="swatch s6"></div>
+        <div class="tag">memory</div>
+        <h2>Echo Signal</h2>
+        <p>Watch the sequence. Repeat it. Each round adds one more pulse.</p>
+        <span class="play">Play</span>
+      </a>
+    </section>
+
+    <footer>Open index.html anytime — the whole arcade lives in this folder.</footer>
+  </main>
+  <script>
+    const canvas = document.getElementById("stars");
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    let W = 0, H = 0;
+    const n = 90;
+    const stars = Array.from({ length: n }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      z: 0.3 + Math.random() * 0.7,
+      a: Math.random() * Math.PI * 2,
+    }));
+    function resize() {
+      W = innerWidth; H = innerHeight;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function tick(t) {
+      ctx.fillStyle = "#03040a";
+      ctx.fillRect(0, 0, W, H);
+      for (const s of stars) {
+        const x = (s.x * W + Math.sin(t * 0.00008 + s.a) * 12 * s.z);
+        const y = (s.y * H + Math.cos(t * 0.0001 + s.a) * 8 * s.z);
+        ctx.fillStyle = `rgba(180,210,255,${0.18 + s.z * 0.45})`;
+        ctx.fillRect(x, y, 1.4 * s.z, 1.4 * s.z);
+      }
+      requestAnimationFrame(tick);
+    }
+    addEventListener("resize", resize);
+    resize();
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
