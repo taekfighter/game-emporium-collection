@@ -1,6 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>
+let inFrame;
+
+try {
+  inFrame = window !== top;
+} catch (e) {
+  inFrame = true;
+}
+if (!localStorage.getItem("ab")) localStorage.setItem("ab", true);
+if (!inFrame && !navigator.userAgent.includes("Firefox") && localStorage.getItem("ab") === "true") {
+  const popup = open("about:blank", "_blank");
+  setTimeout(() => {
+    if (!popup || popup.closed) {
+      alert("Please allow popups for this site. Doing so will allow us to open the site in a about:blank tab and preventing this site from showing up in your history. You can turn this off in the site settings.");
+    } else {
+      const doc = popup.document;
+      const iframe = doc.createElement("iframe");
+      const style = iframe.style;
+      const link = doc.createElement("link");
+      iframe.id = "hub-shell-frame";
+
+      const defaultTitle = "Home - Google Drive";
+      const defaultIcon = "https://ssl.gstatic.com/docs/doclist/images/drive_favicon_2026_32dp.png";
+      const name = localStorage.getItem("setting_tab_title") || defaultTitle;
+      const icon = localStorage.getItem("setting_tab_icon") || defaultIcon;
+
+      doc.title = name;
+      link.rel = "icon";
+      link.id = "shell-tab-icon";
+      link.href = icon;
+
+      iframe.src = location.href;
+      style.position = "fixed";
+      style.top = style.bottom = style.left = style.right = 0;
+      style.border = style.outline = "none";
+      style.width = style.height = "100%";
+
+      doc.head.appendChild(link);
+      const identityScript = doc.createElement("script");
+      identityScript.textContent = `
+        window.addEventListener("message", function (event) {
+          const frame = document.getElementById("hub-shell-frame");
+          if (!frame || event.source !== frame.contentWindow) return;
+          const identity = event.data;
+          if (!identity || identity.type !== "_clocker_tab_identity") return;
+          if (typeof identity.title === "string") document.title = identity.title;
+          if (typeof identity.icon === "string") {
+            const icon = document.getElementById("shell-tab-icon");
+            if (icon) icon.href = identity.icon;
+          }
+        });
+      `;
+      doc.head.appendChild(identityScript);
+      doc.body.appendChild(iframe);
+
+      const script = doc.createElement("script");
+      script.textContent = `
+      window.onbeforeunload = function (event) {
+        const confirmationMessage = 'Leave Site?';
+        (event || window.event).returnValue = confirmationMessage;
+        return confirmationMessage;
+      };
+    `;
+      doc.head.appendChild(script);
+      location.replace("https://drive.google.com/drive/")
+    }
+  }, 0);
+}
+
+
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lumen Arcade</title>
