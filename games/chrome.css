@@ -16,6 +16,27 @@
   background: rgba(8, 10, 20, 0.45);
 }
 .back:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+#hopper {
+  position: fixed;
+  top: 22px;
+  right: 28px;
+  z-index: 40;
+  display: flex;
+  gap: 8px;
+}
+#hopper button {
+  font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(230, 240, 255, 0.78);
+  background: rgba(8, 10, 20, 0.45);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+#hopper button:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
 #hud #title { top: 64px; }
 #overlay {
   position: fixed;

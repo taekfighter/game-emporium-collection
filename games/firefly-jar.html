@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Firefly Jar — Lumen Arcade</title>
+<link rel="stylesheet" href="chrome.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#0c1210}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#hud{position:fixed;inset:0;pointer-events:none;font-family:"Segoe UI",ui-sans-serif,system-ui,sans-serif;color:rgba(232,238,250,.74)}
+#title{position:absolute;top:68px;left:32px;letter-spacing:.28em;text-transform:uppercase;font-size:11px}
+#title b{display:block;font-size:28px;color:#f4f7ff;margin-top:6px;letter-spacing:.08em}
+#meta{position:absolute;top:28px;right:220px;text-align:right;font-size:12px;letter-spacing:.06em;line-height:1.7}
+#hint{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);font-size:13px;text-align:center;background:rgba(8,10,20,.5);border:1px solid rgba(255,255,255,.1);padding:10px 16px;border-radius:999px;transition:opacity 1s;max-width:92vw}
+
+</style></head><body>
+<a class="back" href="../index.html">Arcade</a>
+<canvas id="c"></canvas>
+<div id="hud"><div id="title">night<b>Firefly Jar</b></div><div id="meta"><div id="m1"></div><div id="m2"></div></div>
+<div id="hint">click to catch · shake the cursor fast to release</div></div>
+<script src="catalog.js"></script><script src="hopper.js"></script>
+<script>
+const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
+const dpr=Math.min(devicePixelRatio||1,2);
+let W=0,H=0;
+function resize(){W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);if(typeof onResize==="function")onResize();}
+addEventListener("resize",resize);resize();
+const $=id=>document.getElementById(id);
+const hint=$("hint");setTimeout(()=>hint.style.opacity=".16",8000);
+const rnd=()=>Math.random();
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+let mx=-999,my=-999,down=false;
+addEventListener("pointermove",e=>{mx=e.clientX;my=e.clientY;});
+addEventListener("pointerdown",e=>{if(e.target.closest("a,button"))return;down=true;mx=e.clientX;my=e.clientY;if(typeof onDown==="function")onDown(e);});
+addEventListener("pointerup",e=>{down=false;if(typeof onUp==="function")onUp(e);});
+addEventListener("pointerleave",()=>{down=false;});
+
+const flies=[];
+for(let i=0;i<26;i++)flies.push({x:rnd(),y:rnd(),a:rnd()*6,s:0.3+rnd(),caught:false,ph:rnd()*6});
+let px=0,py=0,shake=0;
+function draw(t){
+  shake=lerp(shake,Math.hypot(mx-px,my-py),0.4);px=mx;py=my;
+  if(shake>46)for(const f of flies)f.caught=false;
+  ctx.fillStyle="#0c1210";ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle="rgba(210,230,200,.28)";ctx.lineWidth=3;
+  const jx=W*0.5,jy=H*0.56,rw=Math.min(W,H)*0.26,rh=Math.min(W,H)*0.34;
+  ctx.beginPath();ctx.ellipse(jx,jy,rw,rh,0,0,6.3);ctx.stroke();
+  ctx.beginPath();ctx.ellipse(jx,jy-rh,rw*0.55,16,0,0,6.3);ctx.stroke();
+  let held=0;
+  for(const f of flies){
+    f.a+=0.01+f.s*0.01;
+    if(!f.caught){f.x+=Math.cos(f.a)*0.003;f.y+=Math.sin(f.a*1.3)*0.003;
+      const dx=f.x*W-jx,dy=f.y*H-jy;
+      if(dx*dx/(rw*rw)+dy*dy/(rh*rh)<1)f.caught=true;
+    } else {held++;
+      const ang=f.a*2+f.ph;
+      f.x=(jx+Math.cos(ang)*(rw*0.7))/W;f.y=(jy+Math.sin(ang*1.4)*(rh*0.7))/H;}
+    const x=f.x*W,y=f.y*H,gl=0.35+0.65*Math.abs(Math.sin(t*0.003+f.ph));
+    ctx.fillStyle=`rgba(210,255,140,${gl})`;
+    ctx.beginPath();ctx.arc(x,y,f.caught?3.2:2.2,0,6.3);ctx.fill();
+  }
+  $("m1").textContent="in the jar · "+held; $("m2").textContent="shake · "+shake.toFixed(0);
+}
+function onDown(){for(const f of flies){if(Math.hypot(f.x*W-mx,f.y*H-my)<20)f.caught=true;}}
+
+if(typeof onResize==="function")onResize();
+requestAnimationFrame(function frame(t){draw(t);requestAnimationFrame(frame);});
+</script></body></html>

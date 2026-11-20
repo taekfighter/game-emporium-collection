@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paper Boats — Lumen Arcade</title>
+<link rel="stylesheet" href="chrome.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#10243a}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#hud{position:fixed;inset:0;pointer-events:none;font-family:"Segoe UI",ui-sans-serif,system-ui,sans-serif;color:rgba(232,238,250,.74)}
+#title{position:absolute;top:68px;left:32px;letter-spacing:.28em;text-transform:uppercase;font-size:11px}
+#title b{display:block;font-size:28px;color:#f4f7ff;margin-top:6px;letter-spacing:.08em}
+#meta{position:absolute;top:28px;right:220px;text-align:right;font-size:12px;letter-spacing:.06em;line-height:1.7}
+#hint{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);font-size:13px;text-align:center;background:rgba(8,10,20,.5);border:1px solid rgba(255,255,255,.1);padding:10px 16px;border-radius:999px;transition:opacity 1s;max-width:92vw}
+
+</style></head><body>
+<a class="back" href="../index.html">Arcade</a>
+<canvas id="c"></canvas>
+<div id="hud"><div id="title">current<b>Paper Boats</b></div><div id="meta"><div id="m1"></div><div id="m2"></div></div>
+<div id="hint">click to fold a boat · move the cursor to blow</div></div>
+<script src="catalog.js"></script><script src="hopper.js"></script>
+<script>
+const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
+const dpr=Math.min(devicePixelRatio||1,2);
+let W=0,H=0;
+function resize(){W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);if(typeof onResize==="function")onResize();}
+addEventListener("resize",resize);resize();
+const $=id=>document.getElementById(id);
+const hint=$("hint");setTimeout(()=>hint.style.opacity=".16",8000);
+const rnd=()=>Math.random();
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+let mx=-999,my=-999,down=false;
+addEventListener("pointermove",e=>{mx=e.clientX;my=e.clientY;});
+addEventListener("pointerdown",e=>{if(e.target.closest("a,button"))return;down=true;mx=e.clientX;my=e.clientY;if(typeof onDown==="function")onDown(e);});
+addEventListener("pointerup",e=>{down=false;if(typeof onUp==="function")onUp(e);});
+addEventListener("pointerleave",()=>{down=false;});
+
+const boats=[];
+function onDown(){boats.push({x:mx,y:my,vx:0,vy:-0.4,ph:rnd()*6});}
+function draw(t){
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#1c3e62");g.addColorStop(1,"#0c1e30");
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  for(let y=H*0.45;y<H;y+=22){ctx.strokeStyle="rgba(255,255,255,.05)";ctx.beginPath();
+    for(let x=0;x<=W;x+=12){const yy=y+Math.sin(x*0.02+t*0.001+y)*3;x?ctx.lineTo(x,yy):ctx.moveTo(x,yy);}ctx.stroke();}
+  for(const b of boats){
+    const wx=(mx-b.x)*0.0008,wy=(my-b.y)*0.0005;
+    b.vx=lerp(b.vx,wx+Math.sin(t*0.0007+b.ph)*0.3,0.02);
+    b.vy=lerp(b.vy,wy+0.15,0.02);
+    b.x+=b.vx;b.y+=b.vy;
+    if(b.x<0)b.x+=W;if(b.x>W)b.x-=W;if(b.y>H-10)b.y=H*0.5;
+    ctx.fillStyle="#f4efe2";
+    ctx.beginPath();ctx.moveTo(b.x-14,b.y);ctx.lineTo(b.x,b.y-16);ctx.lineTo(b.x+14,b.y);ctx.closePath();ctx.fill();
+    ctx.fillStyle="#e4d3b0";ctx.fillRect(b.x-8,b.y-4,16,4);
+  }
+  $("m1").textContent="boats · "+boats.length; $("m2").textContent="wind from the cursor";
+}
+
+if(typeof onResize==="function")onResize();
+requestAnimationFrame(function frame(t){draw(t);requestAnimationFrame(frame);});
+</script></body></html>
