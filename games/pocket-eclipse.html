@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pocket Eclipse — Lumen Arcade</title>
+<link rel="stylesheet" href="chrome.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #07060c; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  #hud {
+    position: fixed; inset: 0; pointer-events: none;
+    font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    color: rgba(230, 220, 200, 0.72);
+  }
+  #title { position: absolute; top: 68px; left: 32px; letter-spacing: .28em; text-transform: uppercase; font-size: 11px; }
+  #title b { display: block; font-size: 28px; color: #f6efe4; margin-top: 6px; letter-spacing: .08em; }
+  #meta { position: absolute; top: 28px; right: 32px; text-align: right; font-size: 12px; letter-spacing: .06em; line-height: 1.7; }
+  #hint {
+    position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
+    font-size: 13px; text-align: center;
+    background: rgba(8, 8, 14, 0.5); border: 1px solid rgba(255, 230, 190, 0.12);
+    padding: 10px 16px; border-radius: 999px; transition: opacity 1s;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">Arcade</a>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="title">orrey<b>Pocket Eclipse</b></div>
+  <div id="meta"><div id="m1"></div><div id="m2"></div></div>
+  <div id="hint">drag a moon to retune its orbit · scroll the wheel · 1–4 skies · Space a fresh system</div>
+</div>
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const dpr = Math.min(devicePixelRatio || 1, 2);
+let W, H, cx, cy;
+function resize() {
+  W = innerWidth; H = innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cx = W / 2; cy = H / 2 + 10;
+}
+addEventListener("resize", resize);
+resize();
+const $ = id => document.getElementById(id);
+setTimeout(() => $("hint").style.opacity = ".2", 9000);
+
+const SKIES = [
+  { name: "ember", star: "#ffb25a", glow: "255,150,70", ink: "#140c08" },
+  { name: "tide", star: "#9fd4ff", glow: "120,180,255", ink: "#070a14" },
+  { name: "violet", star: "#e2b6ff", glow: "190,140,255", ink: "#0c0814" },
+  { name: "jade", star: "#b6f0c8", glow: "140,230,170", ink: "#07110c" },
+];
+let skyI = 0;
+const moons = [];
+let grabbed = null;
+let grabR = 0;
+
+function spawn() {
+  moons.length = 0;
+  const n = 4 + ((Math.random() * 3) | 0);
+  for (let i = 0; i < n; i++) {
+    const orbit = 70 + i * 46 + Math.random() * 16;
+    moons.push({
+      orbit,
+      angle: Math.random() * Math.PI * 2,
+      speed: (0.004 + Math.random() * 0.012) * (Math.random() < 0.5 ? -1 : 1),
+      r: 7 + Math.random() * 11,
+      hue: (i * 47 + Math.random() * 30) % 360,
+      tilt: 0.35 + Math.random() * 0.85,
+    });
+  }
+  refresh();
+}
+function refresh() {
+  $("m1").textContent = "sky · " + SKIES[skyI].name;
+  $("m2").textContent = "moons · " + moons.length;
+}
+
+function hitMoon(x, y) {
+  for (let i = moons.length - 1; i >= 0; i--) {
+    const m = moons[i];
+    const p = pos(m);
+    if (Math.hypot(p.x - x, p.y - y) < m.r + 14) return m;
+  }
+  return null;
+}
+function pos(m) {
+  return {
+    x: cx + Math.cos(m.angle) * m.orbit,
+    y: cy + Math.sin(m.angle) * m.orbit * m.tilt,
+  };
+}
+
+addEventListener("pointerdown", e => {
+  if (e.target.closest("a")) return;
+  grabbed = hitMoon(e.clientX, e.clientY);
+  if (grabbed) grabR = grabbed.orbit;
+});
+addEventListener("pointerup", () => { grabbed = null; });
+addEventListener("pointermove", e => {
+  if (!grabbed) return;
+  const dx = e.clientX - cx;
+  const dy = (e.clientY - cy) / grabbed.tilt;
+  grabbed.orbit = Math.max(48, Math.min(Math.min(W, H) * 0.46, Math.hypot(dx, dy)));
+  grabbed.angle = Math.atan2(dy, dx);
+});
+addEventListener("wheel", e => {
+  e.preventDefault();
+  const target = grabbed || hitMoon(e.clientX, e.clientY) || moons[moons.length - 1];
+  if (!target) return;
+  target.speed = Math.max(-0.04, Math.min(0.04, target.speed - Math.sign(e.deltaY) * 0.002));
+}, { passive: false });
+addEventListener("keydown", e => {
+  if ("1234".includes(e.key)) { skyI = +e.key - 1; refresh(); }
+  else if (e.code === "Space") { e.preventDefault(); spawn(); }
+});
+
+function corona(x, y, radius, rgb, alpha) {
+  const g = ctx.createRadialGradient(x, y, radius * 0.2, x, y, radius);
+  g.addColorStop(0, `rgba(${rgb},${alpha})`);
+  g.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function tick() {
+  const sky = SKIES[skyI];
+  ctx.fillStyle = sky.ink;
+  ctx.fillRect(0, 0, W, H);
+
+  for (let i = 0; i < 70; i++) {
+    const sx = ((i * 97) % 1000) / 1000 * W;
+    const sy = ((i * 53) % 1000) / 1000 * H;
+    ctx.fillStyle = `rgba(255,244,220,${0.15 + (i % 5) * 0.08})`;
+    ctx.fillRect(sx, sy, 1.2, 1.2);
+  }
+
+  const ordered = moons.slice().sort((a, b) => pos(a).y - pos(b).y);
+  for (const m of moons) {
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, m.orbit, m.orbit * m.tilt, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,230,200,0.08)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  const starR = 34;
+  corona(cx, cy, 150, sky.glow, 0.55);
+  ctx.fillStyle = sky.star;
+  ctx.beginPath();
+  ctx.arc(cx, cy, starR, 0, Math.PI * 2);
+  ctx.fill();
+
+  let covered = 0;
+  for (const m of ordered) {
+    if (m !== grabbed) m.angle += m.speed;
+    const p = pos(m);
+    const inFront = p.y >= cy - 4;
+    if (!inFront) drawMoon(m, p, sky, true);
+  }
+  ctx.fillStyle = sky.star;
+  ctx.beginPath();
+  ctx.arc(cx, cy, starR, 0, Math.PI * 2);
+  ctx.fill();
+  for (const m of ordered) {
+    const p = pos(m);
+    if (p.y >= cy - 4) {
+      drawMoon(m, p, sky, false);
+      const overlap = starR + m.r - Math.hypot(p.x - cx, p.y - cy);
+      if (overlap > 0) covered += overlap / (starR * 2);
+    }
+  }
+  covered = Math.max(0, Math.min(1, covered));
+  if (covered > 0.02) {
+    ctx.fillStyle = `rgba(0,0,0,${covered * 0.55})`;
+    ctx.fillRect(0, 0, W, H);
+    corona(cx, cy, 90 + covered * 40, "255,244,220", 0.25 + covered * 0.5);
+  }
+  $("m2").textContent = "moons · " + moons.length + "   shade · " + Math.round(covered * 100) + "%";
+  requestAnimationFrame(tick);
+}
+
+function drawMoon(m, p, sky, behind) {
+  ctx.save();
+  ctx.globalAlpha = behind ? 0.55 : 1;
+  ctx.fillStyle = `hsl(${m.hue}, 28%, ${behind ? 18 : 46}%)`;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, m.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = `hsla(${m.hue}, 40%, 78%, 0.35)`;
+  ctx.beginPath();
+  ctx.arc(p.x - m.r * 0.28, p.y - m.r * 0.28, m.r * 0.45, 0, Math.PI * 2);
+  ctx.fill();
+  if (m === grabbed) {
+    ctx.strokeStyle = "rgba(255,244,220,0.7)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+spawn();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

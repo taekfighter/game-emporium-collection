@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiet Room — Lumen Arcade</title>
+<link rel="stylesheet" href="chrome.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #10141c; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  #hud {
+    position: fixed; inset: 0; pointer-events: none;
+    font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    color: rgba(220, 230, 245, 0.7);
+  }
+  #title { position: absolute; top: 68px; left: 32px; letter-spacing: .28em; text-transform: uppercase; font-size: 11px; }
+  #title b { display: block; font-size: 28px; color: #f4f7ff; margin-top: 6px; letter-spacing: .08em; }
+  #meta { position: absolute; top: 28px; right: 32px; text-align: right; font-size: 12px; letter-spacing: .06em; line-height: 1.7; }
+  #hint {
+    position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
+    font-size: 13px; text-align: center;
+    background: rgba(10, 14, 22, 0.55); border: 1px solid rgba(255,255,255,0.08);
+    padding: 10px 16px; border-radius: 999px; transition: opacity 1s;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">Arcade</a>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="title">room tone<b>Quiet Room</b></div>
+  <div id="meta"><div id="m1"></div><div id="m2"></div></div>
+  <div id="hint">click to drop a tone · drag a ring to retune it · M mute · C clear</div>
+</div>
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const dpr = Math.min(devicePixelRatio || 1, 2);
+let W, H;
+function resize() {
+  W = innerWidth; H = innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener("resize", resize);
+resize();
+const $ = id => document.getElementById(id);
+setTimeout(() => $("hint").style.opacity = ".18", 9000);
+
+const SCALE = [0, 2, 4, 7, 9];
+const BASE = 220;
+let audio = null;
+let master = null;
+let muted = false;
+const rings = [];
+let drag = null;
+let dragDy = 0;
+
+function ensureAudio() {
+  if (audio) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  audio = new AC();
+  master = audio.createGain();
+  master.gain.value = 0.18;
+  master.connect(audio.destination);
+}
+function freqOf(step) {
+  const semi = SCALE[((step % SCALE.length) + SCALE.length) % SCALE.length] + 12 * Math.floor(step / SCALE.length);
+  return BASE * Math.pow(2, semi / 12);
+}
+function stepFromY(y) {
+  const t = 1 - Math.min(0.98, Math.max(0.02, y / H));
+  return Math.round(t * 14);
+}
+
+function addRing(x, y, step) {
+  ensureAudio();
+  if (audio && audio.state === "suspended") audio.resume();
+  const ring = {
+    x, y, step,
+    born: performance.now(),
+    hue: (step * 28 + 190) % 360,
+    osc: null, gain: null, filter: null,
+  };
+  if (audio && master) {
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    const filter = audio.createBiquadFilter();
+    osc.type = "sine";
+    osc.frequency.value = freqOf(step);
+    filter.type = "lowpass";
+    filter.frequency.value = 900;
+    gain.gain.value = 0;
+    osc.connect(filter); filter.connect(gain); gain.connect(master);
+    const now = audio.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.linearRampToValueAtTime(muted ? 0 : 0.22, now + 0.35);
+    osc.start();
+    ring.osc = osc; ring.gain = gain; ring.filter = filter;
+  }
+  rings.push(ring);
+  refresh();
+  return ring;
+}
+function retune(ring) {
+  if (!ring.osc || !audio) return;
+  ring.osc.frequency.linearRampToValueAtTime(freqOf(ring.step), audio.currentTime + 0.05);
+}
+function silence(ring, remove) {
+  if (ring.gain && audio) {
+    const now = audio.currentTime;
+    ring.gain.gain.cancelScheduledValues(now);
+    ring.gain.gain.linearRampToValueAtTime(0, now + 0.25);
+    if (remove) {
+      try { ring.osc.stop(now + 0.3); } catch (e) {}
+    }
+  }
+}
+function hushAll() {
+  if (!audio) return;
+  for (const r of rings) {
+    if (!r.gain) continue;
+    r.gain.gain.cancelScheduledValues(audio.currentTime);
+    r.gain.gain.setValueAtTime(0, audio.currentTime);
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) hushAll();
+  else if (audio && master && !muted) {
+    for (const r of rings) {
+      if (!r.gain) continue;
+      r.gain.gain.linearRampToValueAtTime(0.22, audio.currentTime + 0.2);
+    }
+  }
+});
+function setMute(on) {
+  muted = on;
+  if (!audio || !master) return;
+  master.gain.linearRampToValueAtTime(on ? 0 : 0.18, audio.currentTime + 0.08);
+  refresh();
+}
+function clearAll() {
+  for (const r of rings) silence(r, true);
+  rings.length = 0;
+  refresh();
+}
+function refresh() {
+  $("m1").textContent = "tones · " + rings.length;
+  $("m2").textContent = muted ? "muted" : "listening";
+}
+refresh();
+
+function hit(x, y) {
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r = rings[i];
+    if (Math.hypot(r.x - x, r.y - y) < 28) return r;
+  }
+  return null;
+}
+
+addEventListener("pointerdown", e => {
+  if (e.target.closest("a")) return;
+  const found = hit(e.clientX, e.clientY);
+  if (found) { drag = found; dragDy = e.clientY; return; }
+  addRing(e.clientX, e.clientY, stepFromY(e.clientY));
+});
+addEventListener("pointerup", () => { drag = null; });
+addEventListener("pointermove", e => {
+  if (!drag) return;
+  const next = stepFromY(e.clientY);
+  drag.y = e.clientY;
+  drag.x = e.clientX;
+  if (next !== drag.step) { drag.step = next; drag.hue = (next * 28 + 190) % 360; retune(drag); }
+});
+addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if (k === "m") setMute(!muted);
+  else if (k === "c") clearAll();
+});
+
+function tick(now) {
+  ctx.fillStyle = "#10141c";
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(180,200,230,0.05)";
+  for (let i = 1; i < 8; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, (H / 8) * i);
+    ctx.lineTo(W, (H / 8) * i);
+    ctx.stroke();
+  }
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r = rings[i];
+    const age = (now - r.born) / 1000;
+    const pulse = 0.5 + 0.5 * Math.sin(now * 0.003 + r.step);
+    const radius = 18 + pulse * 10 + Math.min(40, age * 4);
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `hsla(${r.hue}, 70%, 72%, ${0.25 + pulse * 0.35})`;
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = `hsl(${r.hue}, 65%, 78%)`;
+    ctx.fill();
+    if (age > 48) {
+      silence(r, true);
+      rings.splice(i, 1);
+    }
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
