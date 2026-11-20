@@ -1,0 +1,10 @@
+# Dependencies & local runtime
+node_modules/
+.firebase/
+*.log
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
