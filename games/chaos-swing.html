@@ -1,0 +1,24 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Chaos Swing — Lumen Arcade</title><link rel="stylesheet" href="chrome.css" /><style>*{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden;background:#03040a}canvas{display:block;width:100%;height:100%;touch-action:none}#hud{position:fixed;inset:0;pointer-events:none;font-family:"Segoe UI",ui-sans-serif,system-ui,sans-serif;color:rgba(230,240,255,.78)}#title{position:absolute;top:68px;left:32px;letter-spacing:.28em;text-transform:uppercase;font-size:11px}#title b{display:block;font-size:28px;color:#f4f7ff;margin-top:6px;letter-spacing:.08em}#meta{position:absolute;top:28px;right:32px;text-align:right;font-size:12px;letter-spacing:.06em;line-height:1.7}#hint{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);font-size:13px;text-align:center;background:rgba(8,10,20,.45);border:1px solid rgba(255,255,255,.08);padding:10px 16px;border-radius:999px;transition:opacity 1s;white-space:nowrap}</style></head><body><a class="back" href="../index.html">Arcade</a><canvas id="c"></canvas><div id="hud"><div id="title">pendulum<b>Chaos Swing</b></div><div id="meta"><div id="m1"></div><div id="m2"></div></div><div id="hint">grab a bob and drop it · all the pendulums start almost identical · R reset · 1-3 how many · C clear trails</div></div><script>const canvas=document.getElementById("c"),ctx=canvas.getContext("2d"),dpr=Math.min(devicePixelRatio||1,2);let W,H;function resize(){W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle="#03040a";ctx.fillRect(0,0,W,H)}addEventListener("resize",resize);resize();const $=id=>document.getElementById(id);setTimeout(()=>$("hint").style.opacity=".18",9000);
+const HU=[0,0,0];let n=12,Q=[],pv=[0,0],L=1,grab=null,m={x:0,y:0};
+function lay(){pv=[W/2,H*.38];L=Math.min(W,H)*.19}
+function make(){Q=[];for(let i=0;i<n;i++)Q.push({a1:2.3+i*.002,a2:2.3,w1:0,w2:0,tr:[],h:i/n*300+170})}
+lay();make();addEventListener("resize",lay);
+function f(s){const[a1,a2,w1,w2]=s,gg=9.8,dd=a1-a2,den=2-Math.cos(2*dd);
+const A=(-gg*3*Math.sin(a1)-gg*Math.sin(a1-2*a2)-2*Math.sin(dd)*(w2*w2+w1*w1*Math.cos(dd)))/den;
+const B=(2*Math.sin(dd)*(w1*w1*2+gg*2*Math.cos(a1)+w2*w2*Math.cos(dd)))/den;return[w1,w2,A,B]}
+function rk(p,h){const s=[p.a1,p.a2,p.w1,p.w2],add=(a,b,k)=>a.map((v,i)=>v+b[i]*k),k1=f(s),k2=f(add(s,k1,h/2)),k3=f(add(s,k2,h/2)),k4=f(add(s,k3,h));
+p.a1+=h/6*(k1[0]+2*k2[0]+2*k3[0]+k4[0]);p.a2+=h/6*(k1[1]+2*k2[1]+2*k3[1]+k4[1]);p.w1+=h/6*(k1[2]+2*k2[2]+2*k3[2]+k4[2]);p.w2+=h/6*(k1[3]+2*k2[3]+2*k3[3]+k4[3])}
+function bob(p){const x1=pv[0]+Math.sin(p.a1)*L,y1=pv[1]+Math.cos(p.a1)*L;return[x1,y1,x1+Math.sin(p.a2)*L,y1+Math.cos(p.a2)*L]}
+addEventListener("pointerdown",e=>{if(e.target.closest("a"))return;m.x=e.clientX;m.y=e.clientY;let best=50;grab=null;for(const p of Q){const b=bob(p),d=Math.hypot(b[2]-m.x,b[3]-m.y);if(d<best){best=d;grab=p}}});
+addEventListener("pointermove",e=>{m.x=e.clientX;m.y=e.clientY});addEventListener("pointerup",()=>{grab=null});
+addEventListener("keydown",e=>{const k=e.key.toLowerCase();if(k==="r")make();else if(k==="c")Q.forEach(p=>p.tr=[]);else if("123".includes(k)&&k.length===1){n=[3,12,30][+k-1];make()}});
+function tick(){ctx.fillStyle="#03040a";ctx.fillRect(0,0,W,H);
+for(let s=0;s<6;s++)for(const p of Q){if(p===grab){const tx=m.x-pv[0],ty=m.y-pv[1],d=Math.min(Math.hypot(tx,ty),2*L*.999),ph=Math.atan2(tx,ty),be=Math.acos(d/(2*L));p.a1=ph+be;p.a2=ph-be;p.w1=p.w2=0}else rk(p,.0085)}
+ctx.globalCompositeOperation="lighter";
+for(const p of Q){const b=bob(p);p.tr.push(b[2],b[3]);if(p.tr.length>600)p.tr.splice(0,2);
+ctx.strokeStyle="hsla("+p.h+",90%,62%,.55)";ctx.lineWidth=1.4;ctx.beginPath();for(let i=0;i<p.tr.length;i+=2)ctx.lineTo(p.tr[i],p.tr[i+1]);ctx.stroke();
+ctx.strokeStyle="hsla("+p.h+",80%,75%,"+(n>12?.25:.6)+")";ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(pv[0],pv[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(b[2],b[3]);ctx.stroke();
+ctx.fillStyle="hsl("+p.h+",90%,75%)";ctx.beginPath();ctx.arc(b[2],b[3],p===grab?8:5,0,6.283);ctx.fill()}
+ctx.globalCompositeOperation="source-over";ctx.fillStyle="#f4f7ff";ctx.beginPath();ctx.arc(pv[0],pv[1],4,0,6.283);ctx.fill();
+$("m1").textContent="pendulums · "+n;$("m2").textContent=grab?"holding":"swinging";requestAnimationFrame(tick)}requestAnimationFrame(tick);
+</script></body></html>

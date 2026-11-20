@@ -1,0 +1,27 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Orbit Forge — Lumen Arcade</title><link rel="stylesheet" href="chrome.css" /><style>*{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden;background:#03040a}canvas{display:block;width:100%;height:100%;touch-action:none}#hud{position:fixed;inset:0;pointer-events:none;font-family:"Segoe UI",ui-sans-serif,system-ui,sans-serif;color:rgba(230,240,255,.78)}#title{position:absolute;top:68px;left:32px;letter-spacing:.28em;text-transform:uppercase;font-size:11px}#title b{display:block;font-size:28px;color:#f4f7ff;margin-top:6px;letter-spacing:.08em}#meta{position:absolute;top:28px;right:32px;text-align:right;font-size:12px;letter-spacing:.06em;line-height:1.7}#hint{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);font-size:13px;text-align:center;background:rgba(8,10,20,.45);border:1px solid rgba(255,255,255,.08);padding:10px 16px;border-radius:999px;transition:opacity 1s;white-space:nowrap}</style></head><body><a class="back" href="../index.html">Arcade</a><canvas id="c"></canvas><div id="hud"><div id="title">gravity<b>Orbit Forge</b></div><div id="meta"><div id="m1"></div><div id="m2"></div></div><div id="hint">drag to sling a planet · planets merge and fall into the sun · 1-3 sun size · Space pause · C clear</div></div><script>const canvas=document.getElementById("c"),ctx=canvas.getContext("2d"),dpr=Math.min(devicePixelRatio||1,2);let W,H;function resize(){W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle="#03040a";ctx.fillRect(0,0,W,H)}addEventListener("resize",resize);resize();const $=id=>document.getElementById(id);setTimeout(()=>$("hint").style.opacity=".18",9000);
+const SUN=[2500,4000,7000];let si=1,sunM=SUN[si],P=[],paused=false,drag=null,m={x:0,y:0};
+function cx(){return W/2}function cy(){return H/2}
+function rad(p){return 3+Math.cbrt(p.m)*.9}
+function add(x,y,vx,vy,mass){P.push({x,y,vx,vy,m:mass||20+Math.random()*40,h:Math.random()*360,tr:[]})}
+function seed(){P=[];for(const r of [130,210,290,370]){if(r>Math.min(W,H)*.48)continue;const a=Math.random()*6.283,v=Math.sqrt(sunM/r);add(cx()+Math.cos(a)*r,cy()+Math.sin(a)*r,-Math.sin(a)*v,Math.cos(a)*v)}}seed();
+function info(){$("m1").textContent="planets · "+P.length;$("m2").textContent="sun · "+["small","medium","large"][si]+(paused?" · paused":"")}
+addEventListener("pointerdown",e=>{if(!e.target.closest("a")){drag={x:e.clientX,y:e.clientY};m.x=e.clientX;m.y=e.clientY}});
+addEventListener("pointermove",e=>{m.x=e.clientX;m.y=e.clientY});
+addEventListener("pointerup",e=>{if(!drag)return;add(drag.x,drag.y,(e.clientX-drag.x)*.04,(e.clientY-drag.y)*.04);drag=null;if(P.length>60)P.shift()});
+addEventListener("keydown",e=>{const k=e.key.toLowerCase();if("123".includes(k)&&k.length===1){si=+k-1;sunM=SUN[si]}else if(k==="c")P=[];else if(e.code==="Space"){e.preventDefault();paused=!paused}});
+function step(){for(const p of P){let ax=0,ay=0,dx=cx()-p.x,dy=cy()-p.y,d2=dx*dx+dy*dy+60,inv=sunM/(d2*Math.sqrt(d2));ax+=dx*inv;ay+=dy*inv;
+for(const o of P){if(o===p)continue;dx=o.x-p.x;dy=o.y-p.y;d2=dx*dx+dy*dy+80;inv=o.m/(d2*Math.sqrt(d2));ax+=dx*inv;ay+=dy*inv}p.vx+=ax;p.vy+=ay}
+for(const p of P){p.x+=p.vx;p.y+=p.vy}
+for(let i=P.length-1;i>=0;i--){const p=P[i];if(Math.hypot(p.x-cx(),p.y-cy())<18||Math.abs(p.x-cx())>W*2.5||Math.abs(p.y-cy())>H*2.5){P.splice(i,1);continue}
+for(let j=i-1;j>=0;j--){const o=P[j];if(Math.hypot(p.x-o.x,p.y-o.y)<rad(p)+rad(o)){const t=p.m+o.m;o.vx=(o.vx*o.m+p.vx*p.m)/t;o.vy=(o.vy*o.m+p.vy*p.m)/t;o.x=(o.x*o.m+p.x*p.m)/t;o.y=(o.y*o.m+p.y*p.m)/t;o.m=t;P.splice(i,1);break}}}}
+function tick(){ctx.globalCompositeOperation="source-over";ctx.fillStyle="#03040a";ctx.fillRect(0,0,W,H);
+if(!paused){step();step()}
+ctx.globalCompositeOperation="lighter";
+for(const p of P){if(!paused){p.tr.push(p.x,p.y);if(p.tr.length>400)p.tr.splice(0,2)}
+ctx.strokeStyle="hsla("+p.h+",85%,65%,.45)";ctx.lineWidth=1.3;ctx.beginPath();for(let i=0;i<p.tr.length;i+=2)ctx.lineTo(p.tr[i],p.tr[i+1]);ctx.stroke();
+ctx.fillStyle="hsl("+p.h+",90%,72%)";ctx.beginPath();ctx.arc(p.x,p.y,rad(p),0,6.283);ctx.fill()}
+const gr=ctx.createRadialGradient(cx(),cy(),0,cx(),cy(),70);gr.addColorStop(0,"rgba(255,230,160,1)");gr.addColorStop(.25,"rgba(255,170,80,.6)");gr.addColorStop(1,"rgba(255,120,40,0)");ctx.fillStyle=gr;ctx.beginPath();ctx.arc(cx(),cy(),70,0,6.283);ctx.fill();
+ctx.globalCompositeOperation="source-over";
+if(drag){ctx.strokeStyle="rgba(244,247,255,.7)";ctx.setLineDash([6,6]);ctx.beginPath();ctx.moveTo(drag.x,drag.y);ctx.lineTo(m.x,m.y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#f4f7ff";ctx.beginPath();ctx.arc(drag.x,drag.y,5,0,6.283);ctx.fill()}
+info();requestAnimationFrame(tick)}requestAnimationFrame(tick);
+</script></body></html>

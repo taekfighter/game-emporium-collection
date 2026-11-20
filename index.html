@@ -1,77 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>
-let inFrame;
-
-try {
-  inFrame = window !== top;
-} catch (e) {
-  inFrame = true;
-}
-if (!localStorage.getItem("ab")) localStorage.setItem("ab", true);
-if (!inFrame && !navigator.userAgent.includes("Firefox") && localStorage.getItem("ab") === "true") {
-  const popup = open("about:blank", "_blank");
-  setTimeout(() => {
-    if (!popup || popup.closed) {
-      alert("Please allow popups for this site. Doing so will allow us to open the site in a about:blank tab and preventing this site from showing up in your history. You can turn this off in the site settings.");
-    } else {
-      const doc = popup.document;
-      const iframe = doc.createElement("iframe");
-      const style = iframe.style;
-      const link = doc.createElement("link");
-      iframe.id = "hub-shell-frame";
-
-      const defaultTitle = "Home - Google Drive";
-      const defaultIcon = "https://ssl.gstatic.com/docs/doclist/images/drive_favicon_2026_32dp.png";
-      const name = localStorage.getItem("setting_tab_title") || defaultTitle;
-      const icon = localStorage.getItem("setting_tab_icon") || defaultIcon;
-
-      doc.title = name;
-      link.rel = "icon";
-      link.id = "shell-tab-icon";
-      link.href = icon;
-
-      iframe.src = location.href;
-      style.position = "fixed";
-      style.top = style.bottom = style.left = style.right = 0;
-      style.border = style.outline = "none";
-      style.width = style.height = "100%";
-
-      doc.head.appendChild(link);
-      const identityScript = doc.createElement("script");
-      identityScript.textContent = `
-        window.addEventListener("message", function (event) {
-          const frame = document.getElementById("hub-shell-frame");
-          if (!frame || event.source !== frame.contentWindow) return;
-          const identity = event.data;
-          if (!identity || identity.type !== "_clocker_tab_identity") return;
-          if (typeof identity.title === "string") document.title = identity.title;
-          if (typeof identity.icon === "string") {
-            const icon = document.getElementById("shell-tab-icon");
-            if (icon) icon.href = identity.icon;
-          }
-        });
-      `;
-      doc.head.appendChild(identityScript);
-      doc.body.appendChild(iframe);
-
-      const script = doc.createElement("script");
-      script.textContent = `
-      window.onbeforeunload = function (event) {
-        const confirmationMessage = 'Leave Site?';
-        (event || window.event).returnValue = confirmationMessage;
-        return confirmationMessage;
-      };
-    `;
-      doc.head.appendChild(script);
-      location.replace("https://drive.google.com/drive/")
-    }
-  }, 0);
-}
-
-
-  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lumen Arcade</title>
@@ -82,12 +11,12 @@ if (!inFrame && !navigator.userAgent.includes("Firefox") && localStorage.getItem
   <main class="wrap">
     <header class="hero">
       <div>
-        <div class="kicker">local arcade</div>
+        <div class="kicker">local studio</div>
         <h1>Lumen Arcade</h1>
-        <p class="lede">Six browser games. No accounts, no installs — pick a cabinet and play.</p>
+        <p class="lede">Six interactive studios. Nothing to win, just play.</p>
       </div>
       <div class="stat">
-        6 cabinets<br />
+        6 studios<br />
         keyboard + mouse<br />
         runs offline
       </div>
@@ -99,42 +28,42 @@ if (!inFrame && !navigator.userAgent.includes("Firefox") && localStorage.getItem
         <div class="tag">sandbox</div>
         <h2>Lumen Wells</h2>
         <p>Steer a gravity well through a field of light. Drop masses, flip polarity, paint orbits.</p>
-        <span class="play">Play</span>
+        <span class="play">Open</span>
       </a>
-      <a class="card" href="games/pulse-drift.html">
+      <a class="card" href="games/silk-loom.html">
         <div class="swatch s2"></div>
-        <div class="tag">endless</div>
-        <h2>Pulse Drift</h2>
-        <p>Thread a needle of light through moving gates. One hit ends the run.</p>
-        <span class="play">Play</span>
+        <div class="tag">ribbons</div>
+        <h2>Silk Loom</h2>
+        <p>Drag to weave mirrored ribbons of light that drift and curl like silk in a slow wind.</p>
+        <span class="play">Open</span>
       </a>
-      <a class="card" href="games/prism-break.html">
+      <a class="card" href="games/veil.html">
         <div class="swatch s3"></div>
-        <div class="tag">arcade</div>
-        <h2>Prism Break</h2>
-        <p>Bounce a spark off your paddle and crack every brick in the lattice.</p>
-        <span class="play">Play</span>
+        <div class="tag">cloth</div>
+        <h2>Veil</h2>
+        <p>A hanging sheet of cloth. Pull it, blow wind through it, or cut it to ribbons.</p>
+        <span class="play">Open</span>
       </a>
-      <a class="card" href="games/ember-serpent.html">
+      <a class="card" href="games/orbit-forge.html">
         <div class="swatch s4"></div>
-        <div class="tag">classic</div>
-        <h2>Ember Serpent</h2>
-        <p>Eat embers, grow longer, never bite yourself. Simple, mean, and fast.</p>
-        <span class="play">Play</span>
+        <div class="tag">gravity</div>
+        <h2>Orbit Forge</h2>
+        <p>Sling planets around a sun. Watch them settle into orbits, collide, and merge.</p>
+        <span class="play">Open</span>
       </a>
-      <a class="card" href="games/vector-pong.html">
+      <a class="card" href="games/marble-pit.html">
         <div class="swatch s5"></div>
-        <div class="tag">duel</div>
-        <h2>Vector Pong</h2>
-        <p>Mouse vs machine. First to seven wins the set.</p>
-        <span class="play">Play</span>
+        <div class="tag">collisions</div>
+        <h2>Marble Pit</h2>
+        <p>Pour a heap of marbles, tilt gravity every direction, and shove them with the mouse.</p>
+        <span class="play">Open</span>
       </a>
-      <a class="card" href="games/echo-signal.html">
+      <a class="card" href="games/chaos-swing.html">
         <div class="swatch s6"></div>
-        <div class="tag">memory</div>
-        <h2>Echo Signal</h2>
-        <p>Watch the sequence. Repeat it. Each round adds one more pulse.</p>
-        <span class="play">Play</span>
+        <div class="tag">pendulum</div>
+        <h2>Chaos Swing</h2>
+        <p>Double pendulums that start almost identical and drift apart. Grab one and let go.</p>
+        <span class="play">Open</span>
       </a>
     </section>
 

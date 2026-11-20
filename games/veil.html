@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Veil — Lumen Arcade</title><link rel="stylesheet" href="chrome.css" /><style>*{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden;background:#03040a}canvas{display:block;width:100%;height:100%;touch-action:none}#hud{position:fixed;inset:0;pointer-events:none;font-family:"Segoe UI",ui-sans-serif,system-ui,sans-serif;color:rgba(230,240,255,.78)}#title{position:absolute;top:68px;left:32px;letter-spacing:.28em;text-transform:uppercase;font-size:11px}#title b{display:block;font-size:28px;color:#f4f7ff;margin-top:6px;letter-spacing:.08em}#meta{position:absolute;top:28px;right:32px;text-align:right;font-size:12px;letter-spacing:.06em;line-height:1.7}#hint{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);font-size:13px;text-align:center;background:rgba(8,10,20,.45);border:1px solid rgba(255,255,255,.08);padding:10px 16px;border-radius:999px;transition:opacity 1s;white-space:nowrap}</style></head><body><a class="back" href="../index.html">Arcade</a><canvas id="c"></canvas><div id="hud"><div id="title">cloth<b>Veil</b></div><div id="meta"><div id="m1"></div><div id="m2"></div></div><div id="hint">drag the cloth · shift and drag to cut · Space wind · R new cloth</div></div><script>const canvas=document.getElementById("c"),ctx=canvas.getContext("2d"),dpr=Math.min(devicePixelRatio||1,2);let W,H;function resize(){W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle="#03040a";ctx.fillRect(0,0,W,H)}addEventListener("resize",resize);resize();const $=id=>document.getElementById(id);setTimeout(()=>$("hint").style.opacity=".18",9000);
+let pts,cons,sp,grab=null,m={x:0,y:0,d:false},wind=true,t=0;
+function build(){const cw=Math.min(44,Math.floor(W/22)),ch=Math.min(28,Math.floor(H/26));sp=Math.min(24,(W-120)/cw);const ox=(W-(cw-1)*sp)/2,oy=110;pts=[];cons=[];
+for(let y=0;y<ch;y++)for(let x=0;x<cw;x++)pts.push({x:ox+x*sp,y:oy+y*sp,px:ox+x*sp,py:oy+y*sp,pin:y===0&&x%4===0});
+for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){const a=pts[y*cw+x];if(x<cw-1)cons.push({a,b:pts[y*cw+x+1],l:sp,on:true});if(y<ch-1)cons.push({a,b:pts[(y+1)*cw+x],l:sp,on:true})}}
+build();addEventListener("resize",build);
+function info(){$("m1").textContent="wind · "+(wind?"on":"off")}info();
+addEventListener("pointerdown",e=>{if(e.target.closest("a"))return;m.d=true;m.x=e.clientX;m.y=e.clientY;if(e.shiftKey)return;let best=50;grab=null;for(const p of pts){const d=Math.hypot(p.x-m.x,p.y-m.y);if(d<best){best=d;grab=p}}});
+addEventListener("pointerup",()=>{m.d=false;grab=null});
+addEventListener("pointermove",e=>{m.x=e.clientX;m.y=e.clientY;if(m.d&&e.shiftKey)for(const c of cons)if(c.on&&Math.hypot((c.a.x+c.b.x)/2-m.x,(c.a.y+c.b.y)/2-m.y)<16)c.on=false});
+addEventListener("keydown",e=>{if(e.code==="Space"){e.preventDefault();wind=!wind;info()}else if(e.key.toLowerCase()==="r")build()});
+function tick(){t+=.016;ctx.fillStyle="#03040a";ctx.fillRect(0,0,W,H);
+for(const p of pts){if(p.pin)continue;const vx=(p.x-p.px)*.992,vy=(p.y-p.py)*.992;p.px=p.x;p.py=p.y;p.x+=vx+(wind?Math.sin(t*.9+p.y*.012)*.06+.03:0);p.y+=vy+.4}
+if(grab){grab.x=grab.px=m.x;grab.y=grab.py=m.y}
+for(let k=0;k<5;k++)for(const c of cons){if(!c.on)continue;const a=c.a,b=c.b,dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;if(d>c.l*4){c.on=false;continue}const df=(d-c.l)/d*.5;
+if(!a.pin&&a!==grab){a.x+=dx*df;a.y+=dy*df}if(!b.pin&&b!==grab){b.x-=dx*df;b.y-=dy*df}}
+ctx.lineWidth=1.2;for(const c of cons){if(!c.on)continue;const s=Math.hypot(c.b.x-c.a.x,c.b.y-c.a.y)/c.l;ctx.strokeStyle="hsla("+Math.max(0,200-(s-1)*260)+",80%,"+(55+Math.min(25,(s-1)*60))+"%,.85)";ctx.beginPath();ctx.moveTo(c.a.x,c.a.y);ctx.lineTo(c.b.x,c.b.y);ctx.stroke()}
+ctx.fillStyle="#f4f7ff";for(const p of pts)if(p.pin){ctx.beginPath();ctx.arc(p.x,p.y,3,0,6.283);ctx.fill()}
+requestAnimationFrame(tick)}requestAnimationFrame(tick);
+</script></body></html>
