@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Candle Row — Lumen Arcade</title>
+<link rel="stylesheet" href="chrome.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#160e0c}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#hud{position:fixed;inset:0;pointer-events:none;font-family:"Segoe UI",ui-sans-serif,system-ui,sans-serif;color:rgba(232,238,250,.74)}
+#title{position:absolute;top:68px;left:32px;letter-spacing:.28em;text-transform:uppercase;font-size:11px}
+#title b{display:block;font-size:28px;color:#f4f7ff;margin-top:6px;letter-spacing:.08em}
+#meta{position:absolute;top:28px;right:220px;text-align:right;font-size:12px;letter-spacing:.06em;line-height:1.7}
+#hint{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);font-size:13px;text-align:center;background:rgba(8,10,20,.5);border:1px solid rgba(255,255,255,.1);padding:10px 16px;border-radius:999px;transition:opacity 1s;max-width:92vw}
+
+</style></head><body>
+<a class="back" href="../index.html">Arcade</a>
+<canvas id="c"></canvas>
+<div id="hud"><div id="title">flame<b>Candle Row</b></div><div id="meta"><div id="m1"></div><div id="m2"></div></div>
+<div id="hint">click a wick · wave the cursor to pass it on</div></div>
+<script src="catalog.js"></script><script src="hopper.js"></script>
+<script>
+const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
+const dpr=Math.min(devicePixelRatio||1,2);
+let W=0,H=0;
+function resize(){W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);if(typeof onResize==="function")onResize();}
+addEventListener("resize",resize);resize();
+const $=id=>document.getElementById(id);
+const hint=$("hint");setTimeout(()=>hint.style.opacity=".16",8000);
+const rnd=()=>Math.random();
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+let mx=-999,my=-999,down=false;
+addEventListener("pointermove",e=>{mx=e.clientX;my=e.clientY;});
+addEventListener("pointerdown",e=>{if(e.target.closest("a,button"))return;down=true;mx=e.clientX;my=e.clientY;if(typeof onDown==="function")onDown(e);});
+addEventListener("pointerup",e=>{down=false;if(typeof onUp==="function")onUp(e);});
+addEventListener("pointerleave",()=>{down=false;});
+
+let items=[];
+
+function draw(t){
+  function onResize(){items=[]; for(let i=0;i<9;i++)items.push({x:W*(0.12+i*0.09),y:H*0.62,lit:i===4,heat:i===4?1:0});}
+  ctx.fillStyle="#160e0c";ctx.fillRect(0,0,W,H);
+  let wind=(mx-W/2)/W; for(const c of items){c.heat=lerp(c.heat,c.lit?1:0,0.05);}
+for(let i=0;i<items.length;i++){const c=items[i]; if(!c.lit)continue; const dir=wind>0?1:-1; const n=items[i+dir];
+  if(n && Math.abs(wind)>0.25 && !n.lit)n.heat+=0.01; if(n&&n.heat>0.6)n.lit=true;}
+  const st=(for(const c of items){ctx.fillStyle="#f4efe4"; ctx.fillRect(c.x-7,c.y,14,70);
+  if(c.heat>0.05){ctx.fillStyle=`rgba(255,${140+c.heat*80},60,${c.heat})`; ctx.beginPath();
+    ctx.ellipse(c.x+wind*16,c.y-16,6,14+c.heat*6,wind*0.4,0,6.3);ctx.fill();}});
+  const row=typeof st==="function"?st():st;
+  $("m1").textContent=row[0]; $("m2").textContent=row[1];
+}
+
+if(typeof onResize==="function")onResize();
+requestAnimationFrame(function frame(t){draw(t);requestAnimationFrame(frame);});
+</script></body></html>
